@@ -32,16 +32,18 @@ Here is an example of how to start the conversation:
 // no api calls while testing
 const testing = false;
 
-function generatePrompt(chat) {
-  let messages = "";
+function getMessagesPrompt(chat) {
+  let messages = [];
+  const system = { role: "system", content: pre_prompt };
+  messages.push(system);
+
   chat.map((message) => {
-    const m = message.name + ": " + message.message + "\n";
-    messages += m;
+    const role = message.name == "Me" ? "user" : "assistant";
+    const m = { role: role, content: message.message };
+    messages.push(m);
   });
 
-  const prompt = pre_prompt + messages + "AI:";
-
-  return prompt;
+  return messages;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -53,25 +55,18 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response("Need enter a valid input", { status: 400 });
   }
 
-  const prompt = generatePrompt(chat);
-
-  const payload: OpenAIStreamPayload = {
-    model: "text-davinci-003",
-    prompt,
-    temperature: 0.9,
-    top_p: 1,
-    frequency_penalty: 0,
-    presence_penalty: 0.6,
-    max_tokens: 250,
-    stop: ["AI:", "Me:"],
-    stream: true,
-    n: 1,
-  };
-
   if (testing) {
     //figure out how tf to simulate a stream
     return new Response("this is a test response ");
   } else {
+    const payload: OpenAIStreamPayload = {
+      model: "gpt-3.5-turbo",
+      messages: getMessagesPrompt(chat),
+      temperature: 0.9,
+      presence_penalty: 0.6,
+      max_tokens: 100,
+      stream: true,
+    };
     const stream = await OpenAIStream(payload);
     return new Response(stream);
   }
